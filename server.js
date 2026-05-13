@@ -41,7 +41,11 @@ app.get("/users", async (req, res) => {
       }
     });
 
-    res.json(response.data);
+    // Dentally returns { users: [...] }
+    // Yeastar needs just [...]
+    const users = response.data.users || [];
+
+    res.json(users);
   } catch (err) {
     console.error("Users error:", err.response?.data || err.message);
     res.status(500).json({ error: "Failed to fetch users" });
