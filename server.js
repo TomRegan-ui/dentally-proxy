@@ -1,61 +1,42 @@
 require("dotenv").config();
 const express = require("express");
 const axios = require("axios");
+const cors = require("cors");
+
 const app = express();
+app.use(cors());
 
-app.use(express.json());
+const DENTALLY_API_URL = "https://api.dentally.co.uk/v1/users";
+const DENTALLY_API_KEY = process.env.DENTALLY_API_KEY;
 
-const API_KEY = process.env.DENTALLY_API_KEY;
-const BASE_URL = "https://api.dentally.co/v1";
-
-// ------------------------------
-// Patients (X-API-Key)
-// ------------------------------
-app.get("/patients", async (req, res) => {
-  try {
-    const response = await axios.get(`${BASE_URL}/patients`, {
-      headers: {
-        "X-API-Key": API_KEY,
-        "Accept": "application/json",
-        "User-Agent": "YeastarPBX"
-      }
-    });
-
-    res.json(response.data);
-  } catch (err) {
-    console.error("Patients error:", err.response?.data || err.message);
-    res.status(500).json({ error: "Failed to fetch patients" });
-  }
-});
-
-// ------------------------------
-// Users (Bearer Token)
-// ------------------------------
+// USERS ENDPOINT
 app.get("/users", async (req, res) => {
   try {
-    const response = await axios.get(`${BASE_URL}/users`, {
+    const response = await axios.get(DENTALLY_API_URL, {
       headers: {
-        "Authorization": `Bearer ${API_KEY}`,
-        "Accept": "application/json",
-        "User-Agent": "YeastarPBX"
-      }
+        Authorization: `Bearer ${DENTALLY_API_KEY}`,
+      },
     });
 
-    // Dentally returns { users: [...] }
-    // Yeastar needs just [...]
-    const users = response.data.users || [];
+    let users = response.data;
 
-    res.json(users);
-  } catch (err) {
-    console.error("Users error:", err.response?.data || err.message);
+    // ⭐ HARD-CODED FALLBACK MOBILE NUMBER ⭐
+    users = users.map(u => ({
+      ...u,
+      mobile_phone: u.mobile_phone || "00000000000"
+    }));
+
+    res.json(users); // flat array for Yeastar Cloud
+  } catch (error) {
+    console.error("Users error:", error.response?.data || error.message);
     res.status(500).json({ error: "Failed to fetch users" });
   }
 });
 
-// ------------------------------
-// Start server
-// ------------------------------
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Dentally proxy running on port ${PORT}`);
+// ROOT
+app.get("/", (req, res) => {
+  res.send("Dentally Proxy is running");
 });
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
