@@ -6,7 +6,7 @@ const cors = require("cors");
 const app = express();
 app.use(cors());
 
-const DENTALLY_API_URL = "https://api.dentally.co.uk/v1/users";
+const DENTALLY_API_URL = "https://api.dentally.co/v1/users";
 const DENTALLY_API_KEY = process.env.DENTALLY_API_KEY;
 
 // USERS ENDPOINT
