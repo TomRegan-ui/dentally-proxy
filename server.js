@@ -94,17 +94,17 @@ app.get("/crm/users", async (req, res) => {
     const users = await dentallyGet(DENTALLY_USERS_URL);
 
     const formatted = users.map(u => ({
-      id: u.id,
+      id: String(u.id),
       name: `${u.first_name} ${u.last_name}`,
       email: u.email,
-      mobile: u.mobile_phone || ""
+      phone: u.mobile_phone || ""
     }));
 
-    res.json(formatted);
+    res.json({ users: formatted });
 
   } catch (err) {
     console.error("CRM users error:", err.response?.data || err.message);
-    res.json([]);
+    res.json({ users: [] });
   }
 });
 
