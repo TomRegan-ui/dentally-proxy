@@ -18,7 +18,7 @@ app.get("/users", async (req, res) => {
   try {
     const response = await axios.get(DENTALLY_API_URL, {
       headers: {
-        Authorization: `Token ${DENTALLY_API_KEY}`,
+        Authorization: `Bearer ${DENTALLY_API_KEY}`,
       },
     });
 
