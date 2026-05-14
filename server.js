@@ -97,7 +97,7 @@ app.get("/crm/users", async (req, res) => {
       id: String(u.id),
       name: `${u.first_name} ${u.last_name}`,
       email: u.email,
-      phone: u.mobile_phone || ""
+      phone: u.mobile_phone || "00000000000"
     }));
 
     res.json({ users: formatted });
