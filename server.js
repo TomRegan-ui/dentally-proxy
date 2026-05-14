@@ -38,32 +38,22 @@ app.post("/crm/auth", (req, res) => {
 // -------------------------------
 // 2. CRM CONTACT LOOKUP (PATIENTS ONLY)
 // -------------------------------
-app.get("/crm/contact", async (req, res) => {
+app.get("/patients", async (req, res) => {
   try {
     const phone = req.query.phone;
-    if (!phone) return res.json({});
 
-    // Search Dentally patients by phone
-    const patients = await dentallyGet(DENTALLY_PATIENTS_URL, {
-      phone: phone
-    });
-
-    if (!Array.isArray(patients) || patients.length === 0) {
-      return res.json({});
+    // If Yeastar is doing a lookup by phone
+    if (phone) {
+      const patients = await dentallyGet(DENTALLY_PATIENTS_URL, { phone });
+      return res.json(patients || []);
     }
 
-    const p = patients[0];
-
-    res.json({
-      name: `${p.first_name} ${p.last_name}`,
-      phone: p.phone || "",
-      email: p.email || "",
-      url: `https://app.dentally.co/patients/${p.id}`
-    });
-
+    // If Yeastar is doing a full sync
+    const allPatients = await dentallyGet(DENTALLY_PATIENTS_URL);
+    res.json(allPatients || []);
   } catch (err) {
-    console.error("CRM contact error:", err.response?.data || err.message);
-    res.json({});
+    console.error("Error in /patients:", err);
+    res.json([]);
   }
 });
 
