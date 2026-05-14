@@ -19,29 +19,39 @@ app.get("/users", async (req, res) => {
     const response = await axios.get(DENTALLY_API_URL, {
       headers: {
         Authorization: `Bearer ${DENTALLY_API_KEY}`,
+        Accept: "application/json",
+        "User-Agent": "Dentally-Proxy/1.0"
       },
     });
 
-    console.log("Dentally response:", response.data);
-
-    let users = response.data;
+    // Dentally may return { data: [...] } or just [...]
+    let users =
+      response.data?.data ||
+      response.data?.users ||
+      response.data?.results ||
+      response.data;
 
     if (!Array.isArray(users)) {
       console.log("Users is not an array. Full response:", response.data);
       return res.status(500).json({ error: "Dentally did not return a user list" });
     }
 
+    // Transform for Yeastar
     users = users.map(u => ({
-      ...u,
-      mobile_phone: u.mobile_phone || "00000000000"
+      name: `${u.first_name} ${u.last_name}`,
+      mobile: u.mobile_phone || "00000000000",
+      email: u.email
     }));
 
     res.json(users);
+
   } catch (error) {
     console.error("Users error:", error.response?.data || error.message);
     res.status(500).json({ error: "Failed to fetch users" });
   }
 });
+
+
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
