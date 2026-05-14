@@ -91,15 +91,34 @@ app.post("/crm/calllog", async (req, res) => {
 // -------------------------------
 app.get("/crm/users", async (req, res) => {
   try {
-    const users = await dentallyGet(DENTALLY_USERS_URL);
+    const raw = await dentallyGet(DENTALLY_USERS_URL);
 
+    // Dentally may return: data, users, results, or a raw array
+    let users =
+      raw?.data ||
+      raw?.users ||
+      raw?.results ||
+      (Array.isArray(raw) ? raw : []);
+
+    // If still empty, try pagination
+    if (!Array.isArray(users) || users.length === 0) {
+      const page1 = await dentallyGet(DENTALLY_USERS_URL, { page: 1 });
+      const page2 = await dentallyGet(DENTALLY_USERS_URL, { page: 2 });
+
+      users = [
+        ...(page1?.data || page1?.users || page1?.results || []),
+        ...(page2?.data || page2?.users || page2?.results || [])
+      ];
+    }
+
+    // Format for Yeastar
     const formatted = users
       .filter(u => u.email) // Yeastar requires email
       .map(u => ({
-        id: String(u.id), // MUST be string
+        id: String(u.id),
         name: `${u.first_name} ${u.last_name}`.trim(),
         email: u.email,
-        phone: u.mobile_phone || "" // MUST be phone, not mobile
+        phone: u.mobile_phone || ""
       }));
 
     res.json({ users: formatted });
