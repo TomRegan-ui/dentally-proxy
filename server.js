@@ -93,35 +93,34 @@ app.get("/crm/users", async (req, res) => {
   try {
     const raw = await dentallyGet(DENTALLY_USERS_URL);
 
-    // Dentally may return: data, users, results, or a raw array
     let users =
       raw?.data ||
       raw?.users ||
       raw?.results ||
       (Array.isArray(raw) ? raw : []);
 
-    // If still empty, try pagination
-    if (!Array.isArray(users) || users.length === 0) {
-      const page1 = await dentallyGet(DENTALLY_USERS_URL, { page: 1 });
-      const page2 = await dentallyGet(DENTALLY_USERS_URL, { page: 2 });
-
-      users = [
-        ...(page1?.data || page1?.users || page1?.results || []),
-        ...(page2?.data || page2?.users || page2?.results || [])
-      ];
-    }
-
-    // Format for Yeastar
-    const formatted = users
-      .filter(u => u.email) // Yeastar requires email
+    // Normalize and clean users
+    const cleaned = users
+      .filter(u => u.email) // must have email
       .map(u => ({
         id: String(u.id),
-        name: `${u.first_name} ${u.last_name}`.trim(),
-        email: u.email,
-        phone: u.mobile_phone || ""
+        name: `${u.first_name} ${u.last_name}`.replace(/\s+/g, " ").trim(),
+        email: u.email.trim(),
+        phone: u.mobile_phone ? u.mobile_phone.trim() : ""
       }));
 
-    res.json({ users: formatted });
+    // Remove duplicate names (Yeastar requirement)
+    const unique = [];
+    const seenNames = new Set();
+
+    for (const u of cleaned) {
+      if (!seenNames.has(u.name)) {
+        seenNames.add(u.name);
+        unique.push(u);
+      }
+    }
+
+    res.json({ users: unique });
 
   } catch (err) {
     console.error("CRM users error:", err.response?.data || err.message);
