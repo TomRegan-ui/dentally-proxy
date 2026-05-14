@@ -93,12 +93,14 @@ app.get("/crm/users", async (req, res) => {
   try {
     const users = await dentallyGet(DENTALLY_USERS_URL);
 
-    const formatted = users.map(u => ({
-      id: String(u.id),
-      name: `${u.first_name} ${u.last_name}`,
-      email: u.email,
-      phone: u.mobile_phone || "00000000000"
-    }));
+    const formatted = users
+      .filter(u => u.email) // Yeastar requires email
+      .map(u => ({
+        id: String(u.id), // MUST be string
+        name: `${u.first_name} ${u.last_name}`.trim(),
+        email: u.email,
+        phone: u.mobile_phone || "" // MUST be phone, not mobile
+      }));
 
     res.json({ users: formatted });
 
