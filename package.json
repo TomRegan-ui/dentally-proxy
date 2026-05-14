@@ -1,9 +1,7 @@
-"scripts": {
-  "start": "node server.js"
-}
 {
   "name": "dentally-proxy",
   "version": "1.0.0",
+  "description": "Proxy server for Dentally API",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
