@@ -92,7 +92,7 @@ app.get("/crm/contact", (req, res) => {
 app.get("/crm/patients", (req, res) => {
   req.url = "/patients?" + new URLSearchParams(req.query).toString();
   app._router.handle(req, res);
-
+});
 
 // -------------------------------
 // 3. CRM CALL LOGGING
