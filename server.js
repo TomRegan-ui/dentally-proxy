@@ -59,13 +59,15 @@ app.get("/crm/contact", (req, res) => {
         p.home_phone_normalized ||
         p.work_phone_normalized ||
         "";
+      
+return {
+  id: String(p.id),
+  name: `${p.first_name || ""} ${p.last_name || ""}`.trim(),
+  phone: phoneNumber,
+  phone_number: phoneNumber, // ✅ add this
+  email: p.email_address || ""
+};
 
-      return {
-        id: String(p.id),
-        name: `${p.first_name || ""} ${p.last_name || ""}`.trim(),
-        phone: phoneNumber,
-        email: p.email_address || ""
-      };
     }).filter(c => c.phone);
 
     // ✅ Lookup handling
