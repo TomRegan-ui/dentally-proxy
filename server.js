@@ -42,20 +42,47 @@ app.get("/patients", async (req, res) => {
   try {
     const phone = req.query.phone;
 
-    // If Yeastar is doing a lookup by phone
+    // Pull patients
+    const response = await dentallyGet(DENTALLY_PATIENTS_URL);
+    const patients = response?.patients || [];
+
+    // Format contacts correctly
+    const contacts = patients.map(p => {
+      const phoneNumber =
+        p.mobile_phone_normalized ||
+        p.home_phone_normalized ||
+        p.work_phone_normalized ||
+        "";
+
+      return {
+        id: String(p.id),
+        name: `${p.first_name || ""} ${p.last_name || ""}`.trim(),
+        phone: phoneNumber,
+        email: p.email_address || ""
+      };
+    }).filter(c => c.phone); // Yeastar NEEDS phone
+
+    // -------------------------
+    // If Yeastar is doing lookup
+    // -------------------------
     if (phone) {
-      const response = await dentallyGet(DENTALLY_PATIENTS_URL, { phone });
-      const list = response?.patients || [];
-      return res.json(list);
+      const cleanSearch = phone.replace(/\D/g, "").slice(-9);
+
+      const match = contacts.find(c =>
+        c.phone.replace(/\D/g, "").endsWith(cleanSearch)
+      );
+
+      return res.json(match ? [match] : []);
     }
 
-    // If Yeastar is doing a full sync
-    const response = await dentallyGet(DENTALLY_PATIENTS_URL);
-    const list = response?.patients || [];
-    return res.json(list);
+    // -------------------------
+    // Full sync
+    // -------------------------
+    res.json(contacts);
+
   } catch (err) {
-    console.error("Error in /patients:", err);
-    return res.json([]);
+    console.error("Error in /patients:", err.response?.data || err.message);
+    res.json([]);
   }
 });
 
