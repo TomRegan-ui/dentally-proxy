@@ -45,15 +45,17 @@ app.get("/patients", async (req, res) => {
     // If Yeastar is doing a lookup by phone
     if (phone) {
       const patients = await dentallyGet(DENTALLY_PATIENTS_URL, { phone });
-      return res.json(patients || []);
+      const patients = response?.patients || [];
+      return res.json(patients);
     }
 
     // If Yeastar is doing a full sync
-    const allPatients = await dentallyGet(DENTALLY_PATIENTS_URL);
-    res.json(allPatients || []);
+    const response = await dentallyGet(DENTALLY_PATIENTS_URL);
+    const allPatients = response?.patients || [];
+    return res.json(allPatients);
   } catch (err) {
     console.error("Error in /patients:", err);
-    res.json([]);
+    return res.json([]);
   }
 });
 
