@@ -38,33 +38,16 @@ app.post("/crm/auth", (req, res) => {
 // -------------------------------
 // 2. CRM CONTACT LOOKUP (PATIENTS ONLY)
 // -------------------------------
+
 app.get("/patients", async (req, res) => {
   try {
     const phone = req.query.phone;
 
-    // Pull patients
-    
-async function getAllPatients() {
-  let all = [];
-  let page = 1;
-
-  while (true) {
-    const res = await dentallyGet(DENTALLY_PATIENTS_URL, { page });
-    const patients = res?.patients || [];
-
-    all = all.concat(patients);
-
-    if (!res.meta?.pagination?.next_page) break;
-
-    page++;
-  }
-
-  return all;
-}
-    const patients = await getAllPatients();
+    // ✅ ONLY DECLARE ONCE
+    const response = await dentallyGet(DENTALLY_PATIENTS_URL);
     const patients = response?.patients || [];
 
-    // Format contacts correctly
+    // Transform into Yeastar format
     const contacts = patients.map(p => {
       const phoneNumber =
         p.mobile_phone_normalized ||
@@ -78,11 +61,9 @@ async function getAllPatients() {
         phone: phoneNumber,
         email: p.email_address || ""
       };
-    }).filter(c => c.phone); // Yeastar NEEDS phone
+    }).filter(c => c.phone);
 
-    // -------------------------
-    // If Yeastar is doing lookup
-    // -------------------------
+    // ✅ Lookup handling
     if (phone) {
       const cleanSearch = phone.replace(/\D/g, "").slice(-9);
 
@@ -93,9 +74,7 @@ async function getAllPatients() {
       return res.json(match ? [match] : []);
     }
 
-    // -------------------------
-    // Full sync
-    // -------------------------
+    // ✅ Full sync
     res.json(contacts);
 
   } catch (err) {
