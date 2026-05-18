@@ -42,6 +42,11 @@ app.post("/crm/auth", (req, res) => {
 app.get("/patients", async (req, res) => {
   try {
     const phone = req.query.phone;
+    
+app.get("/crm/contact", (req, res) => {
+  req.url = "/crm/patients?" + new URLSearchParams(req.query).toString();
+  app._router.handle(req, res);
+});
 
     // ✅ ONLY DECLARE ONCE
     const response = await dentallyGet(DENTALLY_PATIENTS_URL);
