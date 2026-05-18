@@ -1,4 +1,6 @@
-console.log("SERVER VERSION: CRM ROUTES ENABLED");
+
+console.log("✅ SERVER VERSION: FINAL YEASTAR SYNC FIX");
+
 require("dotenv").config();
 const express = require("express");
 const axios = require("axios");
@@ -15,7 +17,9 @@ const DENTALLY_API_KEY = process.env.DENTALLY_API_KEY;
 const DENTALLY_PATIENTS_URL = "https://api.dentally.co/v1/patients";
 const DENTALLY_USERS_URL = "https://api.dentally.co/v1/users";
 
-// Shared Dentally request helper
+// -------------------------------
+// Dentally API helper
+// -------------------------------
 async function dentallyGet(url, params = {}) {
   const response = await axios.get(url, {
     headers: {
@@ -29,92 +33,106 @@ async function dentallyGet(url, params = {}) {
 }
 
 // -------------------------------
-// 1. CRM AUTH ENDPOINT
+// Pagination (IMPORTANT for sync)
+// -------------------------------
+async function getAllPatients() {
+  let all = [];
+  let page = 1;
+
+  while (true) {
+    const res = await dentallyGet(DENTALLY_PATIENTS_URL, { page });
+    const patients = res?.patients || [];
+
+    all = all.concat(patients);
+
+    if (!res.meta?.pagination?.next_page) break;
+    page++;
+  }
+
+  return all;
+}
+
+// -------------------------------
+// 1. CRM AUTH
 // -------------------------------
 app.post("/crm/auth", (req, res) => {
-  // Yeastar only needs a success response
   res.json({ success: true });
 });
 
 // -------------------------------
-// 2. CRM CONTACT LOOKUP (PATIENTS ONLY)
+// 2. CORE CONTACT LOGIC
+// -------------------------------
+async function getContacts(phone) {
+  console.log("📞 Incoming lookup:", phone || "FULL SYNC");
+
+  const patients = await getAllPatients();
+
+  const contacts = patients.map(p => {
+    const phoneNumber =
+      p.mobile_phone_normalized ||
+      p.home_phone_normalized ||
+      p.work_phone_normalized ||
+      "";
+
+    return {
+      id: String(p.id),
+      name: `${p.first_name || ""} ${p.last_name || ""}`.trim() || "Unknown",
+      phone: phoneNumber,
+      phone_number: phoneNumber,
+      email: p.email_address || "",
+      company: "" // Required for Yeastar compatibility
+    };
+  }).filter(c => c.phone);
+
+  // Lookup mode
+  if (phone) {
+    const cleanSearch = phone.replace(/\D/g, "").slice(-9);
+
+    const match = contacts.find(c =>
+      c.phone.replace(/\D/g, "").endsWith(cleanSearch)
+    );
+
+    return {
+      count: match ? 1 : 0,
+      data: match ? [match] : []
+    };
+  }
+
+  // Full sync
+  return {
+    count: contacts.length,
+    data: contacts
+  };
+}
+
+// -------------------------------
+// 3. YEASTAR ENDPOINTS
 // -------------------------------
 
-
-app.get("/patients", async (req, res) => {
+// ✅ Main lookup endpoint
+app.get("/crm/contact", async (req, res) => {
   try {
-    const phone = req.query.phone;
-
-    const response = await dentallyGet(DENTALLY_PATIENTS_URL);
-    const patients = response?.patients || [];
-
-    const contacts = patients.map(p => {
-      const phoneNumber =
-        p.mobile_phone_normalized ||
-        p.home_phone_normalized ||
-        p.work_phone_normalized ||
-        "";
-
-      return {
-        id: String(p.id),
-        name: `${p.first_name || ""} ${p.last_name || ""}`.trim(),
-        phone: phoneNumber,
-        phone_number: phoneNumber,
-        email: p.email_address || ""
-      };
-    }).filter(c => c.phone);
-
-    if (phone) {
-      const cleanSearch = phone.replace(/\D/g, "").slice(-9);
-
-      const match = contacts.find(c =>
-        c.phone.replace(/\D/g, "").endsWith(cleanSearch)
-      );
-
-      return res.json({ data: match ? [match] : [] });
-    }
-
-    res.json({ data: contacts });
-
+    const result = await getContacts(req.query.phone);
+    res.json(result);
   } catch (err) {
-    console.error("Error in /patients:", err.response?.data || err.message);
-    res.json([]);
+    console.error("CRM контакт error:", err.message);
+    res.json({ count: 0, data: [] });
   }
 });
 
-// ✅ Yeastar endpoints (MUST be top-level)
-
-app.get("/crm/contact", (req, res) => {
-  req.url = "/patients?" + new URLSearchParams(req.query).toString();
-  app._router.handle(req, res);
-});
-
-app.get("/crm/patients", (req, res) => {
-  req.url = "/patients?" + new URLSearchParams(req.query).toString();
-  app._router.handle(req, res);
-});
-
-// -------------------------------
-// 3. CRM CALL LOGGING
-// -------------------------------
-app.post("/crm/calllog", async (req, res) => {
+// ✅ Full sync endpoint
+app.get("/crm/patients", async (req, res) => {
   try {
-    const log = req.body;
-
-    // You can push call logs into Dentally here if needed.
-    // Dentally supports notes, but not a dedicated call log endpoint.
-    // Example: create a note on the patient record.
-
-    res.json({ success: true });
-
+    const result = await getContacts();
+    res.json(result);
   } catch (err) {
-    console.error("CRM calllog error:", err.response?.data || err.message);
-    res.json({ success: false });
+    console.error("CRM patients error:", err.message);
+    res.json({ count: 0, data: [] });
   }
 });
 
 // -------------------------------
-// 4. CRM USERS (for Yeastar UI)
+// 4. USERS
 // -------------------------------
 app.get("/crm/users", async (req, res) => {
   try {
@@ -126,42 +144,46 @@ app.get("/crm/users", async (req, res) => {
       raw?.results ||
       (Array.isArray(raw) ? raw : []);
 
-    // Normalize and clean users
     const cleaned = users
-      .filter(u => u.email) // must have email
+      .filter(u => u.email)
       .map(u => ({
         id: String(u.id),
-        name: `${u.first_name} ${u.last_name}`.replace(/\s+/g, " ").trim(),
+        name: `${u.first_name} ${u.last_name}`.trim(),
         email: u.email.trim(),
-        phone: u.mobile_phone ? u.mobile_phone.trim() : ""
+        phone: u.mobile_phone_normalized
+          ? u.mobile_phone_normalized.trim()
+          : ""
       }));
 
-    // Remove duplicate names (Yeastar requirement)
-    const unique = [];
-    const seenNames = new Set();
-
-    for (const u of cleaned) {
-      if (!seenNames.has(u.name)) {
-        seenNames.add(u.name);
-        unique.push(u);
-      }
-    }
-
-    res.json({ users: unique });
+    res.json({ users: cleaned });
 
   } catch (err) {
-    console.error("CRM users error:", err.response?.data || err.message);
+    console.error("CRM users error:", err.message);
     res.json({ users: [] });
   }
 });
 
 // -------------------------------
-// 5. BASIC TEST ENDPOINT
+// 5. CALL LOG
 // -------------------------------
-app.get("/", (req, res) => {
-  res.send("Dentally CRM Connector is running");
+app.post("/crm/calllog", async (req, res) => {
+  try {
+    res.json({ success: true });
+  } catch (err) {
+    console.error("CRM calllog error:", err.message);
+    res.json({ success: false });
+  }
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+// -------------------------------
+// TEST
+// -------------------------------
+app.get("/", (req, res) => {
+  res.send("✅ Dentally CRM Connector Running");
 });
+
+// -------------------------------
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+});
+
