@@ -43,7 +43,25 @@ app.get("/patients", async (req, res) => {
     const phone = req.query.phone;
 
     // Pull patients
-    const response = await dentallyGet(DENTALLY_PATIENTS_URL);
+    
+async function getAllPatients() {
+  let all = [];
+  let page = 1;
+
+  while (true) {
+    const res = await dentallyGet(DENTALLY_PATIENTS_URL, { page });
+    const patients = res?.patients || [];
+
+    all = all.concat(patients);
+
+    if (!res.meta?.pagination?.next_page) break;
+
+    page++;
+  }
+
+  return all;
+}
+    const patients = await getAllPatients();
     const patients = response?.patients || [];
 
     // Format contacts correctly
