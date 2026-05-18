@@ -40,38 +40,30 @@ app.post("/crm/auth", (req, res) => {
 // 2. CRM CONTACT LOOKUP (PATIENTS ONLY)
 // -------------------------------
 
+
 app.get("/patients", async (req, res) => {
   try {
     const phone = req.query.phone;
-    
-app.get("/crm/contact", (req, res) => {
-  req.url = "/crm/patients?" + new URLSearchParams(req.query).toString();
-  app._router.handle(req, res);
-});
 
-    // ✅ ONLY DECLARE ONCE
     const response = await dentallyGet(DENTALLY_PATIENTS_URL);
     const patients = response?.patients || [];
 
-    // Transform into Yeastar format
     const contacts = patients.map(p => {
       const phoneNumber =
         p.mobile_phone_normalized ||
         p.home_phone_normalized ||
         p.work_phone_normalized ||
         "";
-      
-return {
-  id: String(p.id),
-  name: `${p.first_name || ""} ${p.last_name || ""}`.trim(),
-  phone: phoneNumber,
-  phone_number: phoneNumber, // ✅ add this
-  email: p.email_address || ""
-};
 
+      return {
+        id: String(p.id),
+        name: `${p.first_name || ""} ${p.last_name || ""}`.trim(),
+        phone: phoneNumber,
+        phone_number: phoneNumber,
+        email: p.email_address || ""
+      };
     }).filter(c => c.phone);
 
-    // ✅ Lookup handling
     if (phone) {
       const cleanSearch = phone.replace(/\D/g, "").slice(-9);
 
@@ -82,7 +74,6 @@ return {
       return res.json({ data: match ? [match] : [] });
     }
 
-    // ✅ Full sync
     res.json({ data: contacts });
 
   } catch (err) {
