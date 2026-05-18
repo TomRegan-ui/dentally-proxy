@@ -71,11 +71,11 @@ app.get("/patients", async (req, res) => {
         c.phone.replace(/\D/g, "").endsWith(cleanSearch)
       );
 
-      return res.json(match ? [match] : []);
+      return res.json({ data: match ? [match] : [] });
     }
 
     // ✅ Full sync
-    res.json(contacts);
+    res.json({ data: contacts });
 
   } catch (err) {
     console.error("Error in /patients:", err.response?.data || err.message);
